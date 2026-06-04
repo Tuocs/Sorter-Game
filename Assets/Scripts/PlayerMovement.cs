@@ -13,9 +13,12 @@ public class PlayerMovement : NetworkBehaviour
     public float jumpHeight = 1.5f;
     private bool jumpRequested;
 
+    [Header("Pickup")]
+    public float maxDistance = 50f;
+
     private CharacterController controller;
     private Vector2 moveInput;
-    private Vector3 verticalVelocity;
+    private float verticalVelocity;
     private Transform cameraTransform;
 
     public override void OnStartClient()
@@ -44,24 +47,40 @@ public class PlayerMovement : NetworkBehaviour
         controller = GetComponent<CharacterController>();
     }
 
-    // This function hooks into the New Input System's "Send Messages" setup
     public void OnMove(InputValue value)
     {
         if (!base.IsOwner) return;
-
-        // Read the 2D vector value using InputValue
         moveInput = value.Get<Vector2>();
     }
 
-    // This function hooks into the New Input System's "Send Messages" setup for Jump
     public void OnJump(InputValue value)
     {
         if (!base.IsOwner) return;
-
-        // Trigger the jump if the button is pressed down
         if (value.isPressed && controller.isGrounded)
         {
             jumpRequested = true;
+        }
+    }
+
+    public void OnAttack(InputValue value)
+    {
+        if (!base.IsOwner) return;
+        Ray ray = new Ray(transform.position, transform.forward);
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit, maxDistance))
+        {
+            GameObject hitObject = hit.collider.gameObject;
+            string objectName = hitObject.name;
+            string objectTag = hitObject.tag;
+            
+            Debug.Log($"Hit object: {objectName} with tag: {objectTag}");
+            Debug.DrawLine(ray.origin, hit.point, Color.green);
+        }
+
+        if (hit.collider.TryGetComponent<Scroll>(out Scroll scroll))
+        {
+            scroll.RpcPickup();
         }
     }
 
@@ -76,46 +95,34 @@ public class PlayerMovement : NetworkBehaviour
         // Apply Gravity and Handle Jumping
         if (controller.isGrounded)
         {
-            // Small negative value to keep player stuck to slopes/ground
-            if (verticalVelocity.y < 0)
+            if (verticalVelocity < 0)
             {
-                verticalVelocity.y = -0.5f; 
+                verticalVelocity = -0.5f; 
             }
-
-            // Execute the jump request
             if (jumpRequested)
             {
                 // Kinematic formula: v = sqrt(2 * g * h)
-                verticalVelocity.y = Mathf.Sqrt(2f * gravity * jumpHeight);
+                verticalVelocity = Mathf.Sqrt(2f * gravity * jumpHeight);
                 jumpRequested = false;
             }
         }
         else
         {
-            // Apply gravity over time when in mid-air
-            verticalVelocity.y -= gravity * Time.deltaTime;
-            
-            // Clear accidental jump inputs if hit in mid-air
+            verticalVelocity -= gravity * Time.deltaTime;
             jumpRequested = false;
         }
 
         // Calculate direction relative to the camera look angle
         Vector3 moveDirection = Vector3.zero;
-
         if (cameraTransform != null)
         {
-            // Get camera vectors
             Vector3 camForward = cameraTransform.forward;
             Vector3 camRight = cameraTransform.right;
-
-            // Flatten vectors on the Y axis to stay on the ground plane
             camForward.y = 0f;
             camRight.y = 0f;
-            
             camForward.Normalize();
             camRight.Normalize();
 
-            // Combine vectors based on player input
             moveDirection = (camForward * moveInput.y) + (camRight * moveInput.x);
         }
         else
@@ -125,7 +132,7 @@ public class PlayerMovement : NetworkBehaviour
         }
         
         // Move the CharacterController
-        Vector3 finalMovement = (moveDirection * moveSpeed) + verticalVelocity;
+        Vector3 finalMovement = (moveDirection * moveSpeed) + new Vector3(0,verticalVelocity,0);
         controller.Move(finalMovement * Time.deltaTime);
     }
 }
