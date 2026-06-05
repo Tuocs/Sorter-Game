@@ -61,6 +61,14 @@ public class PlayerMovement : NetworkBehaviour
             jumpRequested = true;
         }
     }
+    public void OnDrop(InputValue value)
+    {
+        if (!base.IsOwner) return;
+        if (value.isPressed)
+        {
+            GetComponentInChildren<Scroll>().RpcDrop();
+        }
+    }
 
     public void OnAttack(InputValue value)
     {
