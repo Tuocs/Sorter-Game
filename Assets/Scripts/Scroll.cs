@@ -17,11 +17,12 @@ public class Scroll : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void RpcPickup(NetworkConnection conn = null)
     {
-        if (!isCarried && base.IsController)
+        Debug.Log("RpcPickup");
+        if (!isCarried)
         {
             isCarried = true;
             NetworkObject playerObject = conn.FirstObject;
-
+            Debug.Log("RpcPickup|" + playerObject.name);
             if (playerObject != null)
             {
                 NetworkObject scrollbox = playerObject.GetComponentInChildren<PlayerScrollBox>().gameObject.GetComponent<NetworkObject>();
@@ -37,6 +38,7 @@ public class Scroll : NetworkBehaviour
     [ServerRpc]
     public void RpcDrop()
     {
+        Debug.Log("RpcDrop");
         if (isCarried)
         {
             isCarried = false;
@@ -51,6 +53,7 @@ public class Scroll : NetworkBehaviour
     [ObserversRpc]
     private void RpcTogglePhysics(bool doEnable)
     {
+        Debug.Log("RpcTogglePhysics " + doEnable);
         if (doEnable)
         {
             rb.useGravity = true;
