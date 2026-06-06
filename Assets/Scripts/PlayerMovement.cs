@@ -14,7 +14,7 @@ public class PlayerMovement : NetworkBehaviour
     private bool jumpRequested;
 
     [Header("Pickup")]
-    public float maxDistance = 50f;
+    public float maxDistance = 5f;
 
     private CharacterController controller;
     private Vector2 moveInput;
@@ -84,11 +84,10 @@ public class PlayerMovement : NetworkBehaviour
             
             Debug.Log($"Hit object: {objectName} with tag: {objectTag}");
             Debug.DrawLine(ray.origin, hit.point, Color.green);
-        }
-
-        if (hit.collider.TryGetComponent<Scroll>(out Scroll scroll))
-        {
-            scroll.RpcPickup();
+            if (hit.collider.tag == "Scroll")
+            {
+                hit.collider.gameObject.GetComponent<Scroll>().RpcPickup();
+            }
         }
     }
 

@@ -24,8 +24,8 @@ public class Scroll : NetworkBehaviour
 
             if (playerObject != null)
             {
-                Transform scrollbox = playerObject.GetComponentInChildren<PlayerScrollBox>().gameObject.transform;
-                transform.SetParent(scrollbox);
+                NetworkObject scrollbox = playerObject.GetComponentInChildren<PlayerScrollBox>().gameObject.GetComponent<NetworkObject>();
+                NetworkObject.SetParent(scrollbox);
                 transform.localPosition = Vector3.zero;
                 transform.localRotation = Quaternion.identity;
                 RpcTogglePhysics(false);
@@ -40,10 +40,11 @@ public class Scroll : NetworkBehaviour
         if (isCarried)
         {
             isCarried = false;
-            NetworkObject.RemoveOwnership();
-            //NetworkObject.UnsetParent();
-            transform.SetParent(null);
             RpcTogglePhysics(true);
+            rb.linearVelocity = transform.TransformDirection(new Vector3(0,2,3)); 
+
+            NetworkObject.RemoveOwnership();
+            NetworkObject.UnsetParent();
         }
     }
 
