@@ -1,53 +1,79 @@
 using UnityEngine;
 using FishNet.Object;
 using FishNet.Connection;
+using FishNet.Object.Synchronizing;
+using FishNet.Component.Transforming;
 
 public class Scroll : NetworkBehaviour
 {
-    private bool isCarried = false;
+    private readonly SyncVar<NetworkObject> carriedByNetObject = new SyncVar<NetworkObject>();
+    private Transform targetScrollBox = null;
+
     private Rigidbody rb;
     private Collider col;
+    private NetworkTransform networkTransform;
 
-    void Start()
+    void Awake()
     {
         rb = GetComponent<Rigidbody>();
         col = GetComponent<Collider>(); 
+        networkTransform = GetComponent<NetworkTransform>();
+        carriedByNetObject.OnChange += OnCarrierChanged;
     }
+
+    void LateUpdate()
+    {
+        if (carriedByNetObject.Value != null)
+        {
+            if (targetScrollBox == null)
+            {
+                PlayerScrollBox scrollBoxComponent = carriedByNetObject.Value.GetComponentInChildren<PlayerScrollBox>();
+                if (scrollBoxComponent != null)
+                {
+                    targetScrollBox = scrollBoxComponent.transform;
+                }
+            }
+
+            if (targetScrollBox != null)
+            {
+                transform.position = targetScrollBox.position;
+                transform.rotation = targetScrollBox.rotation;
+            }
+        }
+    }
+
+
 
     [ServerRpc(RequireOwnership = false)]
     public void RpcPickup(NetworkConnection conn = null)
     {
-        Debug.Log("RpcPickup");
-        if (!isCarried)
+        if (carriedByNetObject.Value != null) return;
+        Debug.Log("RpcPickup on server");
+        NetworkObject playerObject = conn.FirstObject;
+
+        if (playerObject != null)
         {
-            isCarried = true;
-            NetworkObject playerObject = conn.FirstObject;
-            Debug.Log("RpcPickup|" + playerObject.name);
-            if (playerObject != null)
-            {
-                NetworkObject scrollbox = playerObject.GetComponentInChildren<PlayerScrollBox>().gameObject.GetComponent<NetworkObject>();
-                NetworkObject.SetParent(scrollbox);
-                transform.localPosition = Vector3.zero;
-                transform.localRotation = Quaternion.identity;
-                RpcTogglePhysics(false);
-            }
             NetworkObject.GiveOwnership(conn);
+            carriedByNetObject.Value = playerObject;
+            RpcTogglePhysics(false);
         }
+
     }
 
     [ServerRpc]
     public void RpcDrop()
     {
-        Debug.Log("RpcDrop");
-        if (isCarried)
-        {
-            isCarried = false;
-            RpcTogglePhysics(true);
-            rb.linearVelocity = transform.TransformDirection(new Vector3(0,2,3)); 
+        if (carriedByNetObject.Value == null) return;
+        Debug.Log("RpcDrop on server");
 
-            NetworkObject.RemoveOwnership();
-            NetworkObject.UnsetParent();
-        }
+        Vector3 dropVelocity = transform.TransformDirection(new Vector3(0, 2, 3));
+
+        carriedByNetObject.Value = null;
+        targetScrollBox = null;
+        NetworkObject.RemoveOwnership();
+
+        RpcTogglePhysics(true);
+        rb.linearVelocity = dropVelocity; 
     }
 
     [ObserversRpc]
@@ -56,15 +82,29 @@ public class Scroll : NetworkBehaviour
         Debug.Log("RpcTogglePhysics " + doEnable);
         if (doEnable)
         {
+            networkTransform.enabled = true;
             rb.useGravity = true;
             rb.isKinematic = false; 
             col.enabled = true;
         }
         else
         {
+            networkTransform.enabled = false;
             rb.useGravity = false;
             rb.isKinematic = true; 
             col.enabled = false;
         }
+    }
+
+    private void OnCarrierChanged(NetworkObject prev, NetworkObject next, bool asServer)
+    {
+        if (next == null)
+        {
+            targetScrollBox = null;
+        }
+    }
+    private void OnDestroy()
+    {
+        carriedByNetObject.OnChange -= OnCarrierChanged;
     }
 }

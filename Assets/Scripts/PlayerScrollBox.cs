@@ -1,4 +1,5 @@
 using UnityEngine;
+using FishNet.Object;
 
 public class PlayerScrollBox : MonoBehaviour
 {

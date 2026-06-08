@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using FishNet.Object;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : NetworkBehaviour
@@ -20,6 +21,7 @@ public class PlayerMovement : NetworkBehaviour
     private Vector2 moveInput;
     private float verticalVelocity;
     private Transform cameraTransform;
+    private readonly List<Scroll> heldScrolls = new List<Scroll>();
 
     public override void OnStartClient()
     {
@@ -64,9 +66,18 @@ public class PlayerMovement : NetworkBehaviour
     public void OnDrop(InputValue value)
     {
         if (!base.IsOwner) return;
-        if (value.isPressed)
+        if (!value.isPressed) return;
+        if (heldScrolls.Count > 0)
         {
-            GetComponentInChildren<Scroll>().RpcDrop();
+            int lastIndex = heldScrolls.Count - 1;
+            Scroll scrollToDrop = heldScrolls[lastIndex];
+            if (scrollToDrop != null)
+            {
+                scrollToDrop.RpcDrop();
+            }
+            heldScrolls.RemoveAt(lastIndex);
+            
+            Debug.Log($"Dropped a scroll. Inventory count: {heldScrolls.Count}");
         }
     }
 
@@ -87,6 +98,7 @@ public class PlayerMovement : NetworkBehaviour
             if (hit.collider.tag == "Scroll")
             {
                 hit.collider.gameObject.GetComponent<Scroll>().RpcPickup();
+                heldScrolls.Add(hit.collider.gameObject.GetComponent<Scroll>());
             }
         }
     }
