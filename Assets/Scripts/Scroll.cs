@@ -21,7 +21,7 @@ public class Scroll : NetworkBehaviour
         carriedByNetObject.OnChange += OnCarrierChanged;
     }
 
-    void LateUpdate()
+    void Update()
     {
         if (carriedByNetObject.Value != null)
         {
